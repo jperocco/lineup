@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lineup Scanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0E1712; --panel:#16241C; --panel-2:#1C2E22; --line:#2A3F30;
+    --ink:#F2F5EC; --muted:#8FA394; --gold:#E7B92C; --green:#4FA36A;
+    --green-bright:#7FD494; --red:#C1442C; --amber:#D98E2A;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased;}
+  .display{font-family:'Bebas Neue',sans-serif; letter-spacing:0.02em;}
+  .wrap{max-width:820px; margin:0 auto; padding:26px 18px 70px;}
+
+  header{border-bottom:3px solid var(--red); padding-bottom:12px; margin-bottom:18px;}
+  .wordmark{font-size:44px; line-height:0.85;}
+  .wordmark span{color:var(--red);}
+  .tagline{color:var(--muted); font-size:12px; margin-top:4px; font-weight:500;}
+
+  .controls{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; align-items:center;}
+  input, select{background:var(--panel); border:1px solid var(--line); color:var(--ink); padding:9px 11px; border-radius:3px; font-family:'Inter'; font-size:13px;}
+  input#userInput{flex:1; min-width:140px;}
+  input#weekInput{width:70px;}
+  button{font-family:'Inter'; font-weight:700; font-size:13px; border:1.5px solid var(--line); background:var(--panel); color:var(--ink); padding:9px 14px; border-radius:3px; cursor:pointer;}
+  button:hover{border-color:var(--red);}
+  button.primary{background:var(--red); color:#fff; border-color:var(--red);}
+  button.primary:hover{background:#d4532f;}
+  button:disabled{opacity:0.5; cursor:default;}
+  .sub-controls{color:var(--muted); font-size:11px; margin-bottom:18px;}
+
+  .status{color:var(--muted); font-size:12px; margin-bottom:16px; min-height:16px;}
+  .progress-bar-bg{height:5px; background:var(--panel-2); border-radius:3px; overflow:hidden; margin-bottom:8px;}
+  .progress-bar-fill{height:100%; background:var(--red); transition:width .2s;}
+
+  .summary-bar{display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;}
+  .summary-chip{background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:10px 16px; flex:1; min-width:140px;}
+  .summary-chip .num{font-family:'Bebas Neue'; font-size:28px;}
+  .summary-chip .lbl{font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.03em; font-weight:700;}
+  .summary-chip.alert .num{color:var(--red);}
+  .summary-chip.ok .num{color:var(--green-bright);}
+
+  .alert-row{
+    background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--red);
+    border-radius:4px; padding:12px 16px; margin-bottom:8px; display:flex; justify-content:space-between;
+    align-items:center; gap:12px; flex-wrap:wrap;
+  }
+  .alert-row.very-low{border-left-color:#8b2a1a; background:rgba(193,68,44,0.08);}
+  .alert-info{flex:1; min-width:180px;}
+  .alert-player{font-weight:700; font-size:14px;}
+  .alert-pos{color:var(--muted); font-size:11px; font-weight:700; margin-left:6px;}
+  .alert-meta{color:var(--muted); font-size:11px; margin-top:2px;}
+  .alert-proj{font-family:'Bebas Neue'; font-size:26px; color:var(--red); min-width:70px; text-align:right;}
+
+  .league-card{background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--red); border-radius:4px; margin-bottom:14px; overflow:hidden;}
+  .league-head{padding:14px 18px; display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap;}
+  .league-name{font-size:26px;}
+  .league-count{font-family:'Bebas Neue'; font-size:16px; color:var(--red); background:rgba(193,68,44,0.15); padding:3px 10px; border-radius:3px; white-space:nowrap;}
+  .league-scroll{max-height:260px; overflow-y:auto; border-top:1px solid var(--line);}
+  .player-item{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:10px 18px; border-bottom:1px solid var(--line);
+  }
+  .player-item:last-child{border-bottom:none;}
+  .player-item.very-low{background:rgba(193,68,44,0.08);}
+  .pi-info{flex:1; min-width:140px;}
+  .pi-name{font-weight:700; font-size:14px;}
+  .pi-pos{color:var(--muted); font-size:11px; font-weight:700; margin-left:6px;}
+  .pi-proj{font-family:'Bebas Neue'; font-size:22px; color:var(--red); min-width:56px; text-align:right;}
+  .tag{display:inline-block; font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:0.03em; padding:2px 6px; border-radius:3px; margin-left:6px;}
+  .tag-bye{background:rgba(217,142,42,0.2); color:var(--amber);}
+  .tag-zero{background:rgba(193,68,44,0.25); color:#e08268;}
+
+  .empty-msg{color:var(--muted); font-size:13px; padding:24px 0; text-align:center;}
+  .error-box{background:rgba(193,68,44,0.12); border:1px solid var(--red); border-radius:4px; padding:12px 14px; font-size:12px; margin-bottom:16px; color:#f0c9c0;}
+  .ok-msg{background:rgba(79,163,106,0.1); border:1px solid var(--green); border-radius:4px; padding:12px 16px; font-size:13px; color:var(--green-bright); text-align:center;}
+  footer{margin-top:30px; text-align:center; color:var(--muted); font-size:11px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="wordmark">LINEUP <span>ALERTA</span></div>
+    <div class="tagline">escaneia todas as suas ligas e aponta titulares com projeção baixa</div>
+  </header>
+
+  <div class="controls">
+    <input type="text" id="userInput" placeholder="username ou user_id do Sleeper" value="jperocco">
+    <input type="text" id="seasonInput" placeholder="temporada" value="2026" style="width:90px;">
+    <input type="number" id="weekInput" placeholder="semana" min="1" max="18">
+    <select id="limiarInput">
+      <option value="5">abaixo de 5 pts</option>
+      <option value="3">abaixo de 3 pts</option>
+      <option value="8">abaixo de 8 pts</option>
+      <option value="10">abaixo de 10 pts</option>
+    </select>
+    <select id="scoringInput">
+      <option value="pts_ppr">PPR completo</option>
+      <option value="pts_half_ppr">Meio PPR</option>
+      <option value="pts_std">Standard</option>
+    </select>
+    <button class="primary" id="btnScan">Escanear</button>
+  </div>
+  <div class="sub-controls">Deixe a semana em branco pra eu tentar usar a semana atual da temporada.</div>
+
+  <div class="status" id="status"></div>
+  <div class="progress-bar-bg" id="progressWrap" style="display:none;"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
+
+  <div id="results"></div>
+
+  <footer>Projeções vêm do endpoint que o próprio app do Sleeper usa — podem não bater exatamente com apps de terceiros (FantasyPros, ESPN, etc). Pontuação calculada no padrão geral (PPR/Meio/Standard), não a pontuação customizada específica de cada liga.</footer>
+</div>
+
+<script>
+const BASE = 'https://api.sleeper.app/v1';
+const PROJ_BASE = 'https://api.sleeper.com'; // endpoint "não oficial" mas funcional, usado pelo próprio app
+
+let playersMap = null; // player_id -> {first_name, last_name, position, team}
+
+async function resolveUserId(input){
+  const res = await fetch(`${BASE}/user/${encodeURIComponent(input)}`);
+  if(!res.ok) throw new Error('Usuário não encontrado: ' + input);
+  const data = await res.json();
+  if(!data || !data.user_id) throw new Error('Usuário não encontrado: ' + input);
+  return data.user_id;
+}
+
+async function fetchLeagues(userId, season){
+  const res = await fetch(`${BASE}/user/${userId}/leagues/nfl/${season}`);
+  if(!res.ok) throw new Error('Falha ao buscar ligas.');
+  return res.json();
+}
+
+async function fetchRosters(leagueId){
+  const res = await fetch(`${BASE}/league/${leagueId}/rosters`);
+  if(!res.ok) throw new Error('Falha ao buscar rosters.');
+  return res.json();
+}
+
+async function fetchMatchups(leagueId, week){
+  const res = await fetch(`${BASE}/league/${leagueId}/matchups/${week}`);
+  if(!res.ok) throw new Error('Falha ao buscar matchups.');
+  return res.json();
+}
+
+async function fetchPlayersMap(){
+  if(playersMap) return playersMap;
+  const res = await fetch(`${BASE}/players/nfl`);
+  if(!res.ok) throw new Error('Falha ao buscar lista de jogadores.');
+  playersMap = await res.json();
+  return playersMap;
+}
+
+async function fetchProjections(season, week){
+  // endpoint não-oficial que o próprio app do Sleeper usa; o v1 oficial está retornando vazio desde set/2026
+  const positions = ['QB','RB','WR','TE','K','DEF'];
+  const qs = positions.map(p => `position[]=${p}`).join('&');
+  const res = await fetch(`${PROJ_BASE}/projections/nfl/${season}/${week}?season_type=regular&${qs}`);
+  if(!res.ok) throw new Error('Falha ao buscar projeções.');
+  const data = await res.json();
+  // data é um array de {player_id, stats:{...}, ...}
+  const map = {};
+  (Array.isArray(data) ? data : []).forEach(entry => {
+    if(entry && entry.player_id) map[entry.player_id] = entry.stats || {};
+  });
+  return map;
+}
+
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+function playerLabel(playerId){
+  if(playersMap && playersMap[playerId]){
+    const p = playersMap[playerId];
+    const name = p.full_name || `${p.first_name || ''} ${p.last_name || ''}`.trim();
+    return { name: name || playerId, pos: p.position || '—', team: p.team || '' };
+  }
+  // defesas de time usam a sigla do time como "player_id" (ex: "SF")
+  return { name: playerId + ' (DEF)', pos: 'DEF', team: playerId };
+}
+
+async function scan(){
+  const userInput = document.getElementById('userInput').value.trim();
+  const season = document.getElementById('seasonInput').value.trim() || '2026';
+  let week = document.getElementById('weekInput').value.trim();
+  const limiar = parseFloat(document.getElementById('limiarInput').value);
+  const scoringKey = document.getElementById('scoringInput').value;
+
+  if(!userInput){ setStatus('Digite um username ou user_id.'); return; }
+
+  document.getElementById('btnScan').disabled = true;
+  document.getElementById('results').innerHTML = '';
+  setStatus('Resolvendo usuário...');
+
+  try{
+    const userId = await resolveUserId(userInput);
+
+    setStatus('Carregando lista de jogadores (só na primeira vez, ~5MB)...');
+    await fetchPlayersMap();
+
+    setStatus('Buscando suas ligas de ' + season + '...');
+    const leagues = await fetchLeagues(userId, season);
+
+    if(!leagues || leagues.length === 0){
+      setStatus('');
+      document.getElementById('results').innerHTML = `<div class="empty-msg">Nenhuma liga encontrada pra esse usuário em ${season}.</div>`;
+      document.getElementById('btnScan').disabled = false;
+      return;
+    }
+
+    if(!week){
+      setStatus('Nenhuma semana informada — tentando usar a semana da primeira liga encontrada...');
+      week = leagues[0].settings && leagues[0].settings.leg ? leagues[0].settings.leg : 1;
+    }
+    week = parseInt(week, 10);
+
+    setStatus(`Buscando projeções da semana ${week}...`);
+    const projections = await fetchProjections(season, week);
+
+    const progressWrap = document.getElementById('progressWrap');
+    const progressFill = document.getElementById('progressFill');
+    progressWrap.style.display = 'block';
+
+    const alerts = [];
+    let leaguesScanned = 0;
+    let leaguesWithNoIssue = 0;
+    let done = 0;
+
+    for(const league of leagues){
+      setStatus(`Escaneando ${league.name}... (${done+1}/${leagues.length})`);
+      try{
+        const [rosters, matchups] = await Promise.all([
+          fetchRosters(league.league_id),
+          fetchMatchups(league.league_id, week),
+        ]);
+
+        const myRoster = rosters.find(r => r.owner_id === userId || (r.co_owners && r.co_owners.includes(userId)));
+        if(myRoster){
+          const myMatchup = matchups.find(m => m.roster_id === myRoster.roster_id);
+          if(myMatchup && myMatchup.starters){
+            leaguesScanned++;
+            let foundIssueHere = false;
+            myMatchup.starters.forEach(playerId => {
+              if(!playerId || playerId === '0') return; // slot vazio
+              const info = playerLabel(playerId);
+              const statsEntry = projections[playerId];
+
+              if(!statsEntry){
+                // sem nenhum dado de projeção pra esse jogador nessa semana — provável bye ou fora da ativa
+                alerts.push({
+                  leagueName: league.name, leagueId: league.league_id,
+                  player: info.name, pos: info.pos, team: info.team,
+                  proj: null, reason: 'bye',
+                });
+                foundIssueHere = true;
+                return;
+              }
+
+              const proj = statsEntry[scoringKey] ?? statsEntry.pts_ppr ?? statsEntry.pts_half_ppr ?? statsEntry.pts_std;
+              if(proj === null || proj === undefined){
+                alerts.push({
+                  leagueName: league.name, leagueId: league.league_id,
+                  player: info.name, pos: info.pos, team: info.team,
+                  proj: null, reason: 'bye',
+                });
+                foundIssueHere = true;
+              } else if(proj === 0){
+                alerts.push({
+                  leagueName: league.name, leagueId: league.league_id,
+                  player: info.name, pos: info.pos, team: info.team,
+                  proj: 0, reason: 'zero',
+                });
+                foundIssueHere = true;
+              } else if(proj < limiar){
+                alerts.push({
+                  leagueName: league.name, leagueId: league.league_id,
+                  player: info.name, pos: info.pos, team: info.team,
+                  proj: proj, reason: 'low',
+                });
+                foundIssueHere = true;
+              }
+            });
+            if(!foundIssueHere) leaguesWithNoIssue++;
+          }
+        }
+      }catch(e){
+        console.error('Erro na liga', league.name, e);
+      }
+      done++;
+      progressFill.style.width = (done / leagues.length * 100) + '%';
+      await sleep(100);
+    }
+
+    progressWrap.style.display = 'none';
+    setStatus(`Pronto — ${leaguesScanned} ligas escaneadas (semana ${week}).`);
+
+    renderResults(alerts, leaguesScanned, leaguesWithNoIssue, limiar);
+
+  }catch(err){
+    setStatus('');
+    document.getElementById('results').innerHTML = `<div class="error-box">Erro: ${err.message}</div>`;
+  }
+  document.getElementById('btnScan').disabled = false;
+}
+
+function setStatus(msg){ document.getElementById('status').textContent = msg; }
+
+function reasonTag(reason){
+  if(reason === 'bye') return `<span class="tag tag-bye">BYE/sem dado</span>`;
+  if(reason === 'zero') return `<span class="tag tag-zero">ZERO</span>`;
+  return '';
+}
+
+function renderResults(alerts, leaguesScanned, leaguesWithNoIssue, limiar){
+  const resultsEl = document.getElementById('results');
+
+  const byeCount = alerts.filter(a => a.reason === 'bye').length;
+  const zeroCount = alerts.filter(a => a.reason === 'zero').length;
+
+  const summaryHtml = `
+    <div class="summary-bar">
+      <div class="summary-chip"><div class="num display">${leaguesScanned}</div><div class="lbl">Ligas escaneadas</div></div>
+      <div class="summary-chip alert"><div class="num display">${alerts.length}</div><div class="lbl">Jogadores sinalizados</div></div>
+      <div class="summary-chip ok"><div class="num display">${leaguesWithNoIssue}</div><div class="lbl">Ligas sem problema</div></div>
+    </div>
+    <div class="summary-bar">
+      <div class="summary-chip alert"><div class="num display">${zeroCount}</div><div class="lbl">Projeção zero</div></div>
+      <div class="summary-chip alert"><div class="num display">${byeCount}</div><div class="lbl">Bye / sem dado</div></div>
+    </div>
+  `;
+
+  if(alerts.length === 0){
+    resultsEl.innerHTML = summaryHtml + `<div class="ok-msg">✅ Nenhum titular abaixo de ${limiar} pontos, zerado ou sem dado em nenhuma liga.</div>`;
+    return;
+  }
+
+  // agrupa por liga
+  const byLeague = {};
+  alerts.forEach(a => {
+    if(!byLeague[a.leagueId]) byLeague[a.leagueId] = { name: a.leagueName, items: [] };
+    byLeague[a.leagueId].items.push(a);
+  });
+
+  const leagueCards = Object.values(byLeague).map(league => {
+    // ordena: bye/zero primeiro (mais grave), depois por projeção crescente
+    league.items.sort((a,b) => {
+      const rank = (x) => x.reason === 'bye' ? -1 : (x.reason === 'zero' ? 0 : (x.proj ?? 99));
+      return rank(a) - rank(b);
+    });
+
+    const itemsHtml = league.items.map(a => `
+      <div class="player-item ${a.reason !== 'low' || (a.proj !== null && a.proj < 2) ? 'very-low' : ''}">
+        <div class="pi-info">
+          <span class="pi-name">${a.player}</span><span class="pi-pos">${a.pos}${a.team ? ' · ' + a.team : ''}</span>
+          ${reasonTag(a.reason)}
+        </div>
+        <div class="pi-proj">${a.proj === null ? '—' : a.proj.toFixed(1)}</div>
+      </div>
+    `).join('');
+
+    return `
+      <div class="league-card">
+        <div class="league-head">
+          <div class="league-name display">${league.name}</div>
+          <div class="league-count">${league.items.length} sinalizado${league.items.length > 1 ? 's' : ''}</div>
+        </div>
+        <div class="league-scroll">${itemsHtml}</div>
+      </div>
+    `;
+  }).join('');
+
+  resultsEl.innerHTML = summaryHtml + leagueCards;
+}
+
+document.getElementById('btnScan').addEventListener('click', scan);
+document.getElementById('userInput').addEventListener('keydown', e => { if(e.key === 'Enter') scan(); });
+</script>
+</body>
+</html>
